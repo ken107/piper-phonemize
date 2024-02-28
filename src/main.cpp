@@ -18,6 +18,7 @@ using json = nlohmann::json;
 
 int main() {
   piper::eSpeakPhonemeConfig eSpeakConfig;
+  piper::CodepointsPhonemeConfig codepointsConfig;
   tashkeel::State tashkeelState;
 
     int result =
@@ -37,11 +38,13 @@ int main() {
     json lineObj;
       // Each line is JSON object with:
       // {
+      //   "type": "espeak"|"text"
       //   "lang": "eSpeak voice"
       //   "text": "Text to phonemize"
       // }
       lineObj = json::parse(line);
 
+    auto type = lineObj["type"].get<std::string>();
     auto lang = lineObj["lang"].get<std::string>();
     auto text = lineObj["text"].get<std::string>();
     std::string processedText;
@@ -54,8 +57,13 @@ int main() {
 
     std::vector<std::vector<piper::Phoneme>> phonemes;
       // Phonemize text
-      eSpeakConfig.voice = lang;
-      piper::phonemize_eSpeak(processedText, eSpeakConfig, phonemes);
+      if (type == "text") {
+        piper::phonemize_codepoints(processedText, codepointsConfig, phonemes);
+      }
+      else {
+        eSpeakConfig.voice = lang;
+        piper::phonemize_eSpeak(processedText, eSpeakConfig, phonemes);
+      }
 
       // Copy to JSON object
       std::vector<std::vector<std::string>> linePhonemes;
