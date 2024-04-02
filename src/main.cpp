@@ -16,7 +16,6 @@
 #include "json.hpp"
 #include "phoneme_ids.hpp"
 #include "phonemize.hpp"
-#include "tashkeel.hpp"
 #include "uni_algo.h"
 
 using json = nlohmann::json;
@@ -36,6 +35,8 @@ struct RunConfig {
       textToPhonemes;
   bool jsonInput = false;
   bool allowMissingPhonemes = false;
+
+  json input = "[]"_json;
 };
 
 void parseArgs(int argc, char *argv[], RunConfig &runConfig);
@@ -54,7 +55,6 @@ int main(int argc, char *argv[]) {
   piper::eSpeakPhonemeConfig eSpeakConfig;
   piper::CodepointsPhonemeConfig codepointsConfig;
   piper::PhonemeIdConfig idConfig;
-  tashkeel::State tashkeelState;
 
   if (runConfig.phonemeType == eSpeakPhonemes) {
     // Need to initialize eSpeak
@@ -87,42 +87,25 @@ int main(int argc, char *argv[]) {
         piper::DEFAULT_ALPHABET[runConfig.language]);
   }
 
-  // Special handling for Arabic
-  if (runConfig.language == "ar") {
-    if (runConfig.tashkeelModelPath) {
-      // Load tashkeel
-      tashkeel::tashkeel_load(runConfig.tashkeelModelPath->string(),
-                              tashkeelState);
-
-      // Text will be diacritized with libtashkeel.
-      // https://github.com/mush42/libtashkeel
-      runConfig.processText = [&tashkeelState](std::string text) {
-        return tashkeel::tashkeel_run(text, tashkeelState);
-      };
-    } else {
-      std::cerr << "WARNING: --tashkeel_model is not set, so text cannot be "
-                   "diacritized!"
-                << std::endl;
-    }
-  }
 
   // Count of missing phonemes from phoneme/id map
   std::map<piper::Phoneme, std::size_t> missingPhonemes;
 
   // Process each line as a JSON object, adding phonemes and phoneme ids.
   std::string line;
-  while (std::getline(std::cin, line)) {
-    json lineObj;
-    if (runConfig.jsonInput) {
+  //while (std::getline(std::cin, line)) {
+  for (auto& [lineRootKey, lineObj] : runConfig.input.items()) {
+    //json lineObj;
+    //if (runConfig.jsonInput) {
       // Each line is JSON object with:
       // {
       //   "text": "Text to phonemize"
       // }
-      lineObj = json::parse(line);
-    } else {
+      //lineObj = json::parse(line);
+    //} else {
       // Each line is plain text
-      lineObj["text"] = line;
-    }
+    //  lineObj["text"] = line;
+    //}
 
     auto text = lineObj["text"].get<std::string>();
     std::string processedText;
@@ -260,6 +243,9 @@ void parseArgs(int argc, char *argv[], RunConfig &runConfig) {
       runConfig.tashkeelModelPath = std::filesystem::path(argv[++i]);
     } else if (arg == "-j" || arg == "--json_input" || arg == "--json-input") {
       runConfig.jsonInput = true;
+    } else if (arg == "--input") {
+      ensureArg(argc, argv, i);
+      runConfig.input = json::parse(argv[++i]);
     } else if (arg == "--allow_missing_phonemes" ||
                arg == "--allow-missing-phonemes") {
       runConfig.allowMissingPhonemes = true;
