@@ -127,14 +127,16 @@ int main(int argc, char *argv[]) {
       (*runConfig.textToPhonemes)(processedText, phonemes);
 
       // Copy to JSON object
-      std::vector<std::string> linePhonemes;
+      std::vector<std::vector<std::string>> linePhonemes;
       for (auto &sentencePhonemes : phonemes) {
+        std::vector<std::string> sentence;
         for (auto phoneme : sentencePhonemes) {
           // Convert to UTF-8 string
           std::u32string phonemeU32Str;
           phonemeU32Str += phoneme;
-          linePhonemes.push_back(una::utf32to8(phonemeU32Str));
+          sentence.push_back(una::utf32to8(phonemeU32Str));
         }
+        linePhonemes.push_back(sentence);
       }
 
       lineObj["phonemes"] = linePhonemes;
@@ -142,14 +144,13 @@ int main(int argc, char *argv[]) {
 
     if (!lineObj.contains("phonemes_ids")) {
       // Add ids for phonenmes
-      std::vector<json::number_unsigned_t> phonemeIds;
+      std::vector<std::vector<piper::PhonemeId>> phonemeIds;
 
       for (auto &sentencePhonemes : phonemes) {
         std::vector<piper::PhonemeId> sentIds;
         piper::phonemes_to_ids(sentencePhonemes, idConfig, sentIds,
                                missingPhonemes);
-        std::copy(sentIds.begin(), sentIds.end(),
-                  std::back_inserter(phonemeIds));
+        phonemeIds.push_back(sentIds);
       }
 
       lineObj["phoneme_ids"] = phonemeIds;
